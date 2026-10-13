@@ -9,7 +9,16 @@ pipeline {
     stage('Checkout') { steps { checkout scm } }
     stage('Test')     { steps { bat 'mvn clean test' } }
     stage('Package')  { steps { bat 'mvn package -DskipTests' } }
+    stage('Docker Build') {
+      steps { bat 'docker build -t library-app:%BUILD_NUMBER% -t library-app:latest .' }
+    }
+    stage('Docker Run') {
+      steps {
+        bat 'docker rm -f library-container 2>nul & docker run -d --name library-container -p 8083:8081 library-app:latest'
+      }
+    }
     stage('Deploy') {
+      when { branch 'main' }
       steps {
         bat '''
         powershell -Command "Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"
